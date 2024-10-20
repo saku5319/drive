@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Drive</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            text-align: center;
+        }
+
+        main {
+            padding: 20px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            background: white;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .viewBtn { background-color: #2196F3; color: white; }
+        .shareBtn { background-color: #FFC107; color: white; }
+        .deleteBtn { background-color: #F44336; color: white; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>My Drive</h1>
+        <button id="uploadBtn">アップロード</button>
+    </header>
+    <main>
+        <ul id="fileList"></ul>
+    </main>
+    <input type="file" id="fileInput" style="display: none;">
+    <script>
+        const fileList = JSON.parse(localStorage.getItem('files')) || [];
+
+        document.getElementById('uploadBtn').addEventListener('click', function() {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const files = event.target.files;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                fileList.push({ name: file.name, id: Date.now() + i }); // ID生成
+                addFileToList(file.name, Date.now() + i);
+                saveFileToGitHub(file);
+            }
+            saveFiles();
+        });
+
+        function addFileToList(fileName, id) {
+            const listItem = document.createElement('li');
+            listItem.textContent = fileName;
+
+            const actions = document.createElement('div');
+            actions.classList.add('actions');
+
+            const viewButton = document.createElement('button');
+            viewButton.textContent = '閲覧';
+            viewButton.className = 'viewBtn';
+            viewButton.onclick = () => alert(`ファイル名: ${fileName}`);
+
+            const shareButton = document.createElement('button');
+            shareButton.textContent = '共有';
+            shareButton.className = 'shareBtn';
+            shareButton.onclick = () => alert(`${fileName}を共有しました。`);
+
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = '削除';
+            deleteButton.className = 'deleteBtn';
+            deleteButton.onclick = () => {
+                listItem.remove();
+                const index = fileList.findIndex(file => file.id === id);
+                if (index > -1) {
+                    fileList.splice(index, 1);
+                }
+                saveFiles();
+            };
+
+            actions.appendChild(viewButton);
+            actions.appendChild(shareButton);
+            actions.appendChild(deleteButton);
+            listItem.appendChild(actions);
+            document.getElementById('fileList').appendChild(listItem);
+        }
+
+        function saveFiles() {
+            localStorage.setItem('files', JSON.stringify(fileList));
+        }
+
+        function saveFileToGitHub(file) {
+            const token = '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'; // ここにトークンを入力
+            const repo = 'saku5319/drive'; // ここにリポジトリ名を入力
+            const filePath = `files/drivedata.txt`; // 保存先パス
+
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                const content = reader.result.split(',')[1]; // Base64エンコーディング
+                const data = {
+                    message: 'ファイルをアップロード',
+                    content: content,
+                    branch: 'main'
+                };
+
+                fetch(`https://api.github.com/repos/saku5319/drive/contents/drivedata.txt`), {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('成功:', data);
+                })
+                .catch((error) => {
+                    console.error('エラー:', error);
+                });
+            };
+            reader.readAsDataURL(file); // ファイルをBase64形式に変換
+        }
+
+        function loadFiles() {
+            fileList.forEach(file => {
+                addFileToList(file.name, file.id);
+            });
+        }
+
+        // ページ読み込み時にファイルをロード
+        loadFiles();
+    </script>
+</body>
+</html>
